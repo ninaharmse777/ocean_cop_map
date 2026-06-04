@@ -1,6 +1,7 @@
 import html
 import io
 import urllib.request
+
 import pandas as pd
 import streamlit as st
 import folium
@@ -24,14 +25,9 @@ SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRMqzSM1yhQ2XRI
 
 
 def read_google_sheet_csv(url: str) -> pd.DataFrame:
-    """
-    Reads a published Google Sheet CSV without relying on fsspec.
-    """
     request = urllib.request.Request(
         url,
-        headers={
-            "User-Agent": "Mozilla/5.0"
-        }
+        headers={"User-Agent": "Mozilla/5.0"}
     )
 
     with urllib.request.urlopen(request, timeout=20) as response:
@@ -40,7 +36,7 @@ def read_google_sheet_csv(url: str) -> pd.DataFrame:
     return pd.read_csv(io.StringIO(csv_text))
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=30)
 def load_data(url: str) -> pd.DataFrame:
     df = read_google_sheet_csv(url)
 
@@ -49,6 +45,9 @@ def load_data(url: str) -> pd.DataFrame:
 
     required_columns = [
         "organisation",
+        "contact",
+        "public_contact",
+        "website",
         "city",
         "country",
         "latitude",
@@ -58,10 +57,9 @@ def load_data(url: str) -> pd.DataFrame:
         "tools_used",
         "ai_interests",
         "public_profile",
-        "website",
-        "public_contact",
         "logo_url",
         "consent_map",
+        "consent_contact",
         "show_on_map",
     ]
 
@@ -95,8 +93,6 @@ data_source = st.sidebar.radio(
     ["Google Sheet", "Upload CSV manually"]
 )
 
-data = None
-
 if data_source == "Google Sheet":
     try:
         data = load_data(SHEET_CSV_URL)
@@ -105,11 +101,10 @@ if data_source == "Google Sheet":
         st.error("The app could not connect to the Google Sheet.")
         st.write("This usually means one of three things:")
         st.write("1. The Google Sheet is not properly published as a CSV.")
-        st.write("2. Your internet/work network is blocking the connection.")
-        st.write("3. The link is temporarily unavailable.")
+        st.write("2. The published CSV link is pointing to the wrong sheet tab.")
+        st.write("3. Your internet/work network is blocking the connection.")
         st.write("Technical error:")
         st.code(str(e))
-
         st.info("Use the manual CSV upload option in the sidebar as a backup.")
         st.stop()
 
@@ -155,6 +150,7 @@ selected_types = st.sidebar.multiselect(
 
 filtered = data[data["organisation_type"].isin(selected_types)]
 
+
 st.subheader("Interactive global community map")
 
 m = folium.Map(
@@ -163,8 +159,12 @@ m = folium.Map(
     tiles="OpenStreetMap"
 )
 
+
 for _, row in filtered.iterrows():
     organisation = html.escape(str(row["organisation"]))
+    contact = html.escape(str(row["contact"]))
+    public_contact = html.escape(str(row["public_contact"]))
+    website = html.escape(str(row["website"]))
     city = html.escape(str(row["city"]))
     country = html.escape(str(row["country"]))
     organisation_type = html.escape(str(row["organisation_type"]))
@@ -172,8 +172,6 @@ for _, row in filtered.iterrows():
     tools_used = html.escape(str(row["tools_used"]))
     ai_interests = html.escape(str(row["ai_interests"]))
     public_profile = html.escape(str(row["public_profile"]))
-    website = html.escape(str(row["website"]))
-    public_contact = html.escape(str(row["public_contact"]))
     logo_url = str(row["logo_url"]).strip()
 
     logo_html = ""
@@ -181,7 +179,7 @@ for _, row in filtered.iterrows():
     if logo_url.startswith("http"):
         logo_html = f"""
         <div style="margin-bottom:10px;">
-            <img src="{html.escape(logo_url)}" style="max-width:120px; max-height:80px;">
+            <img src="{html.escape(logo_url)}" style="max-width:140px; max-height:90px;">
         </div>
         """
 
@@ -205,7 +203,7 @@ for _, row in filtered.iterrows():
         """
 
     popup_html = f"""
-    <div style="font-family: Arial; font-size: 13px; width: 300px;">
+    <div style="font-family: Arial; font-size: 13px; width: 310px;">
         {logo_html}
         <h4>{organisation}</h4>
         <p><b>Location:</b> {city}, {country}</p>
@@ -219,14 +217,24 @@ for _, row in filtered.iterrows():
     </div>
     """
 
-    iframe = IFrame(popup_html, width=340, height=430)
-    popup = folium.Popup(iframe, max_width=360)
+    iframe = IFrame(popup_html, width=360, height=460)
+    popup = folium.Popup(iframe, max_width=380)
+
+    if logo_url.startswith("http"):
+        marker_icon = folium.CustomIcon(
+            icon_image=logo_url,
+            icon_size=(42, 42),
+            icon_anchor=(21, 21),
+            popup_anchor=(0, -20)
+        )
+    else:
+        marker_icon = folium.Icon(icon="info-sign")
 
     folium.Marker(
         location=[row["latitude"], row["longitude"]],
         popup=popup,
         tooltip=organisation,
-        icon=folium.Icon(icon="info-sign")
+        icon=marker_icon
     ).add_to(m)
 
 

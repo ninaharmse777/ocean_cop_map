@@ -45,13 +45,12 @@ def load_data(url: str) -> pd.DataFrame:
 
     required_columns = [
         "organisation",
-        "contact",
         "public_contact",
         "website",
         "city",
         "country",
-        "latitude",
-        "longitude",
+        "map_latitude",
+        "map_longitude",
         "organisation_type",
         "data_focus",
         "tools_used",
@@ -78,10 +77,10 @@ def load_data(url: str) -> pd.DataFrame:
         & (df["show_on_map"].astype(str).str.lower().str.strip() == "yes")
     ]
 
-    df["latitude"] = pd.to_numeric(df["latitude"], errors="coerce")
-    df["longitude"] = pd.to_numeric(df["longitude"], errors="coerce")
+    df["map_latitude"] = pd.to_numeric(df["map_latitude"], errors="coerce")
+    df["map_longitude"] = pd.to_numeric(df["map_longitude"], errors="coerce")
 
-    df = df.dropna(subset=["latitude", "longitude"])
+    df = df.dropna(subset=["map_latitude", "map_longitude"])
 
     return df
 
@@ -119,21 +118,47 @@ else:
     data.columns = [c.strip().lower() for c in data.columns]
     data = data.fillna("")
 
+    required_columns = [
+        "organisation",
+        "public_contact",
+        "website",
+        "city",
+        "country",
+        "map_latitude",
+        "map_longitude",
+        "organisation_type",
+        "data_focus",
+        "tools_used",
+        "ai_interests",
+        "public_profile",
+        "logo_url",
+        "consent_map",
+        "consent_contact",
+        "show_on_map",
+    ]
+
+    missing = [col for col in required_columns if col not in data.columns]
+    if missing:
+        st.error("Your uploaded CSV is missing some required columns.")
+        st.write("Missing columns:")
+        st.write(missing)
+        st.stop()
+
     data = data[
         (data["consent_map"].astype(str).str.lower().str.strip() == "yes")
         & (data["show_on_map"].astype(str).str.lower().str.strip() == "yes")
     ]
 
-    data["latitude"] = pd.to_numeric(data["latitude"], errors="coerce")
-    data["longitude"] = pd.to_numeric(data["longitude"], errors="coerce")
-    data = data.dropna(subset=["latitude", "longitude"])
+    data["map_latitude"] = pd.to_numeric(data["map_latitude"], errors="coerce")
+    data["map_longitude"] = pd.to_numeric(data["map_longitude"], errors="coerce")
+    data = data.dropna(subset=["map_latitude", "map_longitude"])
 
 
 if data.empty:
     st.warning("No approved organisations are currently available to display.")
     st.write(
         "Check that your sheet has rows where `consent_map` is `Yes`, "
-        "`show_on_map` is `Yes`, and latitude/longitude values are filled in."
+        "`show_on_map` is `Yes`, and approximate city-centre map coordinates are filled in."
     )
     st.stop()
 
@@ -162,8 +187,8 @@ m = folium.Map(
 
 for _, row in filtered.iterrows():
     organisation = html.escape(str(row["organisation"]))
-    contact = html.escape(str(row["contact"]))
     public_contact = html.escape(str(row["public_contact"]))
+    consent_contact = str(row["consent_contact"]).strip().lower()
     website = html.escape(str(row["website"]))
     city = html.escape(str(row["city"]))
     country = html.escape(str(row["country"]))
@@ -195,7 +220,7 @@ for _, row in filtered.iterrows():
 
     contact_html = ""
 
-    if public_contact:
+    if public_contact and consent_contact == "yes":
         contact_html = f"""
         <p>
             <b>Public contact:</b> {public_contact}
@@ -206,7 +231,7 @@ for _, row in filtered.iterrows():
     <div style="font-family: Arial; font-size: 13px; width: 310px;">
         {logo_html}
         <h4>{organisation}</h4>
-        <p><b>Location:</b> {city}, {country}</p>
+        <p><b>Approximate location:</b> {city}, {country}</p>
         <p><b>Organisation type:</b> {organisation_type}</p>
         <p><b>Data focus:</b> {data_focus}</p>
         <p><b>Tools/platforms used:</b> {tools_used}</p>
@@ -231,7 +256,7 @@ for _, row in filtered.iterrows():
         marker_icon = folium.Icon(icon="info-sign")
 
     folium.Marker(
-        location=[row["latitude"], row["longitude"]],
+        location=[row["map_latitude"], row["map_longitude"]],
         popup=popup,
         tooltip=organisation,
         icon=marker_icon
@@ -241,7 +266,7 @@ for _, row in filtered.iterrows():
 st_folium(m, width=1200, height=650)
 
 st.caption(
-    "Prototype map. Only organisations that consented to appear on the map are displayed."
+    "Prototype map. Locations are approximate city-centre points only. Exact organisation coordinates are not displayed."
 )
 
 st.subheader("Community directory")

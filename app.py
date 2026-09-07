@@ -43,7 +43,7 @@ def load_data(url: str) -> pd.DataFrame:
     df.columns = [c.strip().lower() for c in df.columns]
     df = df.fillna("")
 
-    # Accept either old or new coordinate column names from Map_Data.
+    # Accept either old or new coordinate column names.
     if "map_latitude" not in df.columns and "latitude" in df.columns:
         df["map_latitude"] = df["latitude"]
 
@@ -66,7 +66,6 @@ def load_data(url: str) -> pd.DataFrame:
         "logo_url",
         "consent_map",
         "consent_contact",
-        "show_on_map",
     ]
 
     missing = [col for col in required_columns if col not in df.columns]
@@ -79,9 +78,9 @@ def load_data(url: str) -> pd.DataFrame:
         st.write(list(df.columns))
         st.stop()
 
+    # Display only organisations that explicitly consented to appear on the map.
     df = df[
-        (df["consent_map"].astype(str).str.lower().str.strip() == "yes")
-        & (df["show_on_map"].astype(str).str.lower().str.strip() == "yes")
+        df["consent_map"].astype(str).str.lower().str.strip() == "yes"
     ]
 
     df["map_latitude"] = pd.to_numeric(df["map_latitude"], errors="coerce")
@@ -125,7 +124,7 @@ else:
     data.columns = [c.strip().lower() for c in data.columns]
     data = data.fillna("")
 
-    # Accept either old or new coordinate column names from uploaded CSVs.
+    # Accept either old or new coordinate column names.
     if "map_latitude" not in data.columns and "latitude" in data.columns:
         data["map_latitude"] = data["latitude"]
 
@@ -148,7 +147,6 @@ else:
         "logo_url",
         "consent_map",
         "consent_contact",
-        "show_on_map",
     ]
 
     missing = [col for col in required_columns if col not in data.columns]
@@ -159,8 +157,7 @@ else:
         st.stop()
 
     data = data[
-        (data["consent_map"].astype(str).str.lower().str.strip() == "yes")
-        & (data["show_on_map"].astype(str).str.lower().str.strip() == "yes")
+        data["consent_map"].astype(str).str.lower().str.strip() == "yes"
     ]
 
     data["map_latitude"] = pd.to_numeric(data["map_latitude"], errors="coerce")
@@ -171,8 +168,8 @@ else:
 if data.empty:
     st.warning("No approved organisations are currently available to display.")
     st.write(
-        "Check that your sheet has rows where `consent_map` is `Yes`, "
-        "`show_on_map` is `Yes`, and approximate city-centre map coordinates are filled in."
+        "Check that your sheet has rows where `consent_map` is `Yes` "
+        "and approximate city-centre map coordinates are filled in."
     )
     st.stop()
 

@@ -68,6 +68,13 @@ def load_data(url: str) -> pd.DataFrame:
     df.columns = [c.strip().lower() for c in df.columns]
     df = df.fillna("")
 
+    # Accept either latitude/longitude or map_latitude/map_longitude.
+    if "map_latitude" not in df.columns and "latitude" in df.columns:
+        df["map_latitude"] = df["latitude"]
+
+    if "map_longitude" not in df.columns and "longitude" in df.columns:
+        df["map_longitude"] = df["longitude"]
+
     required_columns = [
         "organisation",
         "public_contact",
@@ -142,6 +149,13 @@ else:
     data = pd.read_csv(uploaded_file)
     data.columns = [c.strip().lower() for c in data.columns]
     data = data.fillna("")
+
+    # Accept either latitude/longitude or map_latitude/map_longitude.
+    if "map_latitude" not in data.columns and "latitude" in data.columns:
+        data["map_latitude"] = data["latitude"]
+
+    if "map_longitude" not in data.columns and "longitude" in data.columns:
+        data["map_longitude"] = data["longitude"]
 
     required_columns = [
         "organisation",

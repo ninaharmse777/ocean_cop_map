@@ -246,10 +246,40 @@ for _, row in filtered.iterrows():
     iframe = IFrame(popup_html, width=360, height=460)
     popup = folium.Popup(iframe, max_width=380)
 
+    # Plain CSS map pin: no logo files and no external marker image assets.
+    pin_html = """
+    <div style="
+        width: 22px;
+        height: 22px;
+        border-radius: 50% 50% 50% 0;
+        border: 2px solid white;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+        transform: rotate(-45deg);
+        background: #3388ff;
+        position: relative;
+    ">
+        <div style="
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: white;
+            position: absolute;
+            top: 5.5px;
+            left: 5.5px;
+        "></div>
+    </div>
+    """
+
     folium.Marker(
         location=[row["map_latitude"], row["map_longitude"]],
         popup=popup,
-        tooltip=organisation
+        tooltip=organisation,
+        icon=folium.DivIcon(
+            html=pin_html,
+            icon_size=(26, 36),
+            icon_anchor=(11, 28),
+            popup_anchor=(0, -28)
+        )
     ).add_to(m)
 
 

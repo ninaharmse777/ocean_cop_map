@@ -1,5 +1,6 @@
 import html
 import io
+import re
 import urllib.request
 
 import pandas as pd
@@ -7,6 +8,30 @@ import streamlit as st
 import folium
 from folium import IFrame
 from streamlit_folium import st_folium
+
+
+
+def normalise_logo_url(url):
+    """
+    Convert common Google Drive sharing links into a direct image thumbnail URL.
+    Other normal http/https image URLs are returned unchanged.
+    """
+    url = str(url or "").strip()
+
+    if not url.startswith(("http://", "https://")):
+        return ""
+
+    if "drive.google.com" in url:
+        match = re.search(r"/d/([A-Za-z0-9_-]+)", url)
+
+        if not match:
+            match = re.search(r"[?&]id=([A-Za-z0-9_-]+)", url)
+
+        if match:
+            file_id = match.group(1)
+            return f"https://drive.google.com/thumbnail?id={file_id}&sz=w500"
+
+    return url
 
 
 st.set_page_config(
@@ -43,13 +68,6 @@ def load_data(url: str) -> pd.DataFrame:
     df.columns = [c.strip().lower() for c in df.columns]
     df = df.fillna("")
 
-    # Accept either old or new coordinate column names.
-    if "map_latitude" not in df.columns and "latitude" in df.columns:
-        df["map_latitude"] = df["latitude"]
-
-    if "map_longitude" not in df.columns and "longitude" in df.columns:
-        df["map_longitude"] = df["longitude"]
-
     required_columns = [
         "organisation",
         "public_contact",
@@ -66,6 +84,7 @@ def load_data(url: str) -> pd.DataFrame:
         "logo_url",
         "consent_map",
         "consent_contact",
+        "show_on_map",
     ]
 
     missing = [col for col in required_columns if col not in df.columns]
@@ -78,9 +97,9 @@ def load_data(url: str) -> pd.DataFrame:
         st.write(list(df.columns))
         st.stop()
 
-    # Display only organisations that explicitly consented to appear on the map.
     df = df[
-        df["consent_map"].astype(str).str.lower().str.strip() == "yes"
+        (df["consent_map"].astype(str).str.lower().str.strip() == "yes")
+        & (df["show_on_map"].astype(str).str.lower().str.strip() == "yes")
     ]
 
     df["map_latitude"] = pd.to_numeric(df["map_latitude"], errors="coerce")
@@ -124,13 +143,6 @@ else:
     data.columns = [c.strip().lower() for c in data.columns]
     data = data.fillna("")
 
-    # Accept either old or new coordinate column names.
-    if "map_latitude" not in data.columns and "latitude" in data.columns:
-        data["map_latitude"] = data["latitude"]
-
-    if "map_longitude" not in data.columns and "longitude" in data.columns:
-        data["map_longitude"] = data["longitude"]
-
     required_columns = [
         "organisation",
         "public_contact",
@@ -147,6 +159,7 @@ else:
         "logo_url",
         "consent_map",
         "consent_contact",
+        "show_on_map",
     ]
 
     missing = [col for col in required_columns if col not in data.columns]
@@ -157,7 +170,8 @@ else:
         st.stop()
 
     data = data[
-        data["consent_map"].astype(str).str.lower().str.strip() == "yes"
+        (data["consent_map"].astype(str).str.lower().str.strip() == "yes")
+        & (data["show_on_map"].astype(str).str.lower().str.strip() == "yes")
     ]
 
     data["map_latitude"] = pd.to_numeric(data["map_latitude"], errors="coerce")
@@ -168,8 +182,8 @@ else:
 if data.empty:
     st.warning("No approved organisations are currently available to display.")
     st.write(
-        "Check that your sheet has rows where `consent_map` is `Yes` "
-        "and approximate city-centre map coordinates are filled in."
+        "Check that your sheet has rows where `consent_map` is `Yes`, "
+        "`show_on_map` is `Yes`, and approximate city-centre map coordinates are filled in."
     )
     st.stop()
 
@@ -208,7 +222,7 @@ for _, row in filtered.iterrows():
     tools_used = html.escape(str(row["tools_used"]))
     ai_interests = html.escape(str(row["ai_interests"]))
     public_profile = html.escape(str(row["public_profile"]))
-    logo_url = str(row["logo_url"]).strip()
+    logo_url = normalise_logo_url(row["logo_url"])
 
     logo_html = ""
 

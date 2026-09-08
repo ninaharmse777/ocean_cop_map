@@ -1,6 +1,5 @@
 import html
 import io
-import re
 import urllib.request
 
 import pandas as pd
@@ -9,29 +8,6 @@ import folium
 from folium import IFrame
 from streamlit_folium import st_folium
 
-
-
-def normalise_logo_url(url):
-    """
-    Convert common Google Drive sharing links into a direct image thumbnail URL.
-    Other normal http/https image URLs are returned unchanged.
-    """
-    url = str(url or "").strip()
-
-    if not url.startswith(("http://", "https://")):
-        return ""
-
-    if "drive.google.com" in url:
-        match = re.search(r"/d/([A-Za-z0-9_-]+)", url)
-
-        if not match:
-            match = re.search(r"[?&]id=([A-Za-z0-9_-]+)", url)
-
-        if match:
-            file_id = match.group(1)
-            return f"https://drive.google.com/thumbnail?id={file_id}&sz=w500"
-
-    return url
 
 
 st.set_page_config(
@@ -88,7 +64,6 @@ def load_data(url: str) -> pd.DataFrame:
         "tools_used",
         "ai_interests",
         "public_profile",
-        "logo_url",
         "consent_map",
         "consent_contact",
         "show_on_map",
@@ -170,7 +145,6 @@ else:
         "tools_used",
         "ai_interests",
         "public_profile",
-        "logo_url",
         "consent_map",
         "consent_contact",
         "show_on_map",
@@ -236,17 +210,6 @@ for _, row in filtered.iterrows():
     tools_used = html.escape(str(row["tools_used"]))
     ai_interests = html.escape(str(row["ai_interests"]))
     public_profile = html.escape(str(row["public_profile"]))
-    logo_url = normalise_logo_url(row["logo_url"])
-
-    logo_html = ""
-
-    if logo_url.startswith("http"):
-        logo_html = f"""
-        <div style="margin-bottom:10px;">
-            <img src="{html.escape(logo_url)}" style="max-width:140px; max-height:90px;">
-        </div>
-        """
-
     website_html = ""
 
     if website.startswith("http"):
@@ -268,7 +231,6 @@ for _, row in filtered.iterrows():
 
     popup_html = f"""
     <div style="font-family: Arial; font-size: 13px; width: 310px;">
-        {logo_html}
         <h4>{organisation}</h4>
         <p><b>Approximate location:</b> {city}, {country}</p>
         <p><b>Organisation type:</b> {organisation_type}</p>
@@ -284,21 +246,10 @@ for _, row in filtered.iterrows():
     iframe = IFrame(popup_html, width=360, height=460)
     popup = folium.Popup(iframe, max_width=380)
 
-    if logo_url.startswith("http"):
-        marker_icon = folium.CustomIcon(
-            icon_image=logo_url,
-            icon_size=(42, 42),
-            icon_anchor=(21, 21),
-            popup_anchor=(0, -20)
-        )
-    else:
-        marker_icon = folium.Icon(icon="info-sign")
-
     folium.Marker(
         location=[row["map_latitude"], row["map_longitude"]],
         popup=popup,
-        tooltip=organisation,
-        icon=marker_icon
+        tooltip=organisation
     ).add_to(m)
 
 
